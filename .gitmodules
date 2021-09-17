@@ -1,0 +1,6 @@
+[submodule "server"]
+	path = server
+	url = https://github.com/junnikym/sukjulyo-server.git
+[submodule "app"]
+	path = app
+	url = https://github.com/solarpark7346/sukjulyo-app.git
