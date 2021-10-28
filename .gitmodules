@@ -4,3 +4,6 @@
 [submodule "app"]
 	path = app
 	url = https://github.com/solarpark7346/sukjulyo-app.git
+[submodule "summary/ext"]
+	path = summary/ext
+	url = https://github.com/uoneway/KoBertSum
