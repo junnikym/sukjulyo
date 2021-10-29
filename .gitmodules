@@ -3,4 +3,7 @@
 	url = https://github.com/junnikym/sukjulyo-server.git
 [submodule "app"]
 	path = app
-	url = https://github.com/solarpark7346/sukjulyo-app.git
+	url = https://github.com/solarpark7346/sukjulyo-app.gitcd
+[submodule "news/ner"]
+	path = news/ner
+	url = https://github.com/eagle705/pytorch-bert-crf-ner.git
