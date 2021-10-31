@@ -43,25 +43,17 @@ pip install -r requirements.txt
 -------------
 
 ## 1. Topic
+기간 내 이슈가 되는 뉴스 선정.<br/>
 
-1. 뉴스 수집 (언론사 RSS )
-2. 뉴스 해시태그 추출 ([eagle705/pytorch-bert-crf-ner](https://github.com/eagle705/pytorch-bert-crf-ner, 'pytorch-bert-crf-ner github link'))
-3. 기간 중 가장 많이 모인 해시태그 뉴스 추천
+	언론사에서 재공하는 RSS를 통해 뉴스를 수집 후 NER를 통해 각 뉴스의 해시태그 추출.
+	일정 수준 이상 모인 해시태그를 이슈 키워드로 지정 후 해당 키워드 뉴스 추천
 
- * 일정 수준 이상으로 모인 해시태그만 선정
+- [eagle705/pytorch-bert-crf-ner](https://github.com/eagle705/pytorch-bert-crf-ner, 'pytorch-bert-crf-ner github link')
 
-## 2. User Based CF
+## 2. Latent Factor Based Filtering
+취향이 유사한 다른 유저들을 찾아 유저들이 선호하는 뉴스에서 사용자가 아직 보지 않은 뉴스 추천.
 
-1. 유저(A)가 선호 해시태그가 비슷한 유저(B)를 선정 
-2. 유저(B)가 선호하는 뉴스 중 유저(A)가 보지 못한 뉴스 추천 
+## 3. Contents Based Filtering
+유저가 선호하는 해시태그와 가장 근접한 뉴스를 선정
 
-## 3. Item Based CF
-
-	
-
-## 4. Contents Based Filtering
-
-> 유저가 선호하는 해시태그와 가장 근접한 뉴스를 선정
-
-1. 가장 인기가 많은 뉴스를 선정 (10000개 이하, 조회수와 좋아요 갯수)
-2. 뉴스 장르의 코사인 유사도를 계산하여 가장 유사한 뉴스 추천
+	뉴스 장르의 코사인 유사도를 계산하여 가장 유사한 뉴스 추천
