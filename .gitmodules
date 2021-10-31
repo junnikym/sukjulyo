@@ -7,3 +7,6 @@
 [submodule "summary/ext"]
 	path = summary/ext
 	url = https://github.com/uoneway/KoBertSum
+[submodule "news/ner"]
+	path = news/ner
+	url = https://github.com/eagle705/pytorch-bert-crf-ner.git
