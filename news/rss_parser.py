@@ -14,9 +14,7 @@ if sys.version_info[0] == 3:
 else:
     from urllib import urlopen
 
-RSS_JSON_PATH = '../../news_data/rss.json'
-
-url = "http://rss.kmib.co.kr/data/kmibRssAll.xml"
+RSS_JSON_PATH = '../../news/rss.json'
 
 def open_rss_url(url):
 	try:
@@ -39,11 +37,11 @@ def open_rss_url(url):
 
 news = []
 
-LIST_SEARCH_ONCE = [
+LIST_SEARCH_SINGLE = [
 	'title', 'link', 'description', 'author', 'pubDate', 
 ]
 
-LIST_SEARCH_MANY = [
+LIST_SEARCH_MULTI = [
 	'category',
 ]
 
@@ -59,7 +57,7 @@ DEFAULT_VAL = {
 def fine_elems_on_article(item):
 	result = {}
 
-	for target in LIST_SEARCH_ONCE:
+	for target in LIST_SEARCH_SINGLE:
 		elem = item.find(target)
 
 		if (elem != None) and (elem.text != None) :
@@ -67,7 +65,7 @@ def fine_elems_on_article(item):
 		else:
 			result[target] = DEFAULT_VAL[target]
 
-	for target in LIST_SEARCH_ONCE:
+	for target in LIST_SEARCH_SINGLE:
 		elem = item.findall(target)
 
 		if (elem != None) and (len(elem) != 0) :
@@ -82,8 +80,10 @@ with open(RSS_JSON_PATH) as json_file:
 	
 	for rss_info in rss_infos:		
 		articles = open_rss_url(rss_info['url'])
-
-		for item in articles:
-			news.append(fine_elems_on_article(item))
+		if articles:
+			for item in articles:
+				news.append(fine_elems_on_article(item))
+		else:
+			print(f"{rss_info.corp} - {rss_info.cate} is closed or empty")
 
 print(news)
