@@ -6,6 +6,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
+import argparse
 import json 
 from xml.etree import ElementTree   # xml 파싱 모듈 import
 
@@ -14,76 +15,79 @@ if sys.version_info[0] == 3:
 else:
     from urllib import urlopen
 
-RSS_JSON_PATH = '../../news/rss.json'
+class RssParser:
 
-def open_rss_url(url):
-	try:
-		response = urlopen(url).read()
-	except:
-		print(" *Error : Can not open url ( ", rss_info['corp'], ")")	
-		return
-	
-	try:
-		response = response.decode('UTF8')
-	except:
-		response = response.decode('CP949')
+	def __init__(
+		self,
+		rss_urls_json_file = './rss.json',
+		search_list_single = ['title', 'link', 'description', 'author', 'pubDate'],
+		search_list_multi = ['category',],
+		default_values = {'title':'', 'link':'','description':'','author':None,'pubDate':datetime.datetime.now(),'category':[]},
+		print_err = True
+	) -> None:
+		self.rss_urls_json_file	= rss_urls_json_file
+		self.search_list_single = search_list_single
+		self.search_list_multi	= search_list_single
+		self.default_values		= default_values
+		self.print_err 			= print_err
 
-	xml_tree = ElementTree.fromstring(response)
-	
-	return list(xml_tree.iter('item'))
+	def open_rss_url(self, url, rss_info):
+		try:
+			response = urlopen(url).read()
+		except:
+			if self.print_err:
+				print(" *Error : Can not open url ( ", rss_info['corp'], ")")	
+			return
+		
+		try:
+			response = response.decode('UTF8')
+		except:
+			response = response.decode('CP949')
 
-#articles = open_rss_url(url)
-#print(articles[2].find('title').text)
+		xml_tree = ElementTree.fromstring(response)
+		
+		return list(xml_tree.iter('item'))
 
-news = []
 
-LIST_SEARCH_SINGLE = [
-	'title', 'link', 'description', 'author', 'pubDate', 
-]
+	def fine_elems_on_article(self, item):
+		result = {}
 
-LIST_SEARCH_MULTI = [
-	'category',
-]
+		for target in self.search_list_single:
+			elem = item.find(target)
 
-DEFAULT_VAL = {
-	'title'			 : '',
-	'link'			 : '',
-	'description'	 : '',
-	'author'		 : None,
-	'pubDate'		 : datetime.datetime.now(),
-	'category'		 : []
-}
+			if (elem != None) and (elem.text != None) :
+				result[target] = elem.text;
+			else:
+				if(target == 'pubDate'):
+					result[target] = self.default_values[target].strftime('%Y-%m-%d')
+				else:
+					result[target] = self.default_values[target]
 
-def fine_elems_on_article(item):
-	result = {}
+		for target in self.search_list_multi:
+			elem = item.findall(target)
 
-	for target in LIST_SEARCH_SINGLE:
-		elem = item.find(target)
+			if (elem != None) and (len(elem) != 0) :
+				result[target] = [x.text for x in elem];
+			else:
+				result[target] = self.default_values[target]
 
-		if (elem != None) and (elem.text != None) :
-			result[target] = elem;
-		else:
-			result[target] = DEFAULT_VAL[target]
+		return result;
 
-	for target in LIST_SEARCH_SINGLE:
-		elem = item.findall(target)
+	def extraction(self):
+		news = []
 
-		if (elem != None) and (len(elem) != 0) :
-			result[target] = [x.text for x in elem];
-		else:
-			result[target] = DEFAULT_VAL[target]
+		with open(self.rss_urls_json_file) as json_file:
+			rss_infos = json.load(json_file)
+			
+			for rss_info in rss_infos:		
+				articles = self.open_rss_url(rss_info['url'], rss_info)
+				if articles:
+					for item in articles:
+						news.append(self.fine_elems_on_article(item))
+						news[-1]['corp'] = rss_info['corp']
+						news[-1]['cate'] = rss_info['cate']
+				else:
+					if self.print_err:
+						print(f"{rss_info['corp']} - {rss_info['cate']} is closed or empty")
 
-	return result;
-
-with open(RSS_JSON_PATH) as json_file:
-	rss_infos = json.load(json_file)
-	
-	for rss_info in rss_infos:		
-		articles = open_rss_url(rss_info['url'])
-		if articles:
-			for item in articles:
-				news.append(fine_elems_on_article(item))
-		else:
-			print(f"{rss_info.corp} - {rss_info.cate} is closed or empty")
-
-print(news)
+		return news;
