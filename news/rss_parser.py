@@ -26,8 +26,8 @@ class RssParser:
 		print_err = True
 	) -> None:
 		self.rss_urls_json_file	= rss_urls_json_file
-		self.search_list_single = search_list_single
-		self.search_list_multi	= search_list_single
+		self.search_list_single	= search_list_single
+		self.search_list_multi 	= search_list_multi
 		self.default_values		= default_values
 		self.print_err 			= print_err
 
