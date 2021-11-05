@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import subprocess
+import requests
 import json
 
 from rss_parser import RssParser
 from ner import NER
 
-SERVER_URL = 'http://localhost:8080'
+SERVER_URL = 'http://localhost:8080/news'
 
 '''
 	개체이름:
@@ -24,27 +24,18 @@ SKIP_TAGS = ['DAT', 'TIM', 'DUR', 'MNY', 'PNT', 'NOH']
 rss_parser = RssParser()
 ner = NER()
 
+count = 0
+
 def save(article):
-	cmd = f'''
-		curl --location --request POST '{SERVER_URL}/news' \
-		--header 'Content-Type: application/json; charset=UTF-8' \
-		--data-raw '{{
-			"corp":"{article['corp']}",
-			"title":"{article['title']}",
-			"link":"{article['link']}",
-			"description":"{article['description']}",
-			"author":"{article['author']}",
-			"pubDate":"{article['pubdate']}"
-		}}'
-	'''
+	global count 
+	count += 1
 
-	pipe = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	out, err = pipe.communicate()
+	article['pubDate'] = article.pop('pubdate')
 
-	state = out.decode().find('state')
+	res = requests.post(SERVER_URL, json=article)
 
-	if state != -1:  # ERROR
-		print(out)
+	if res.status_code != 200:  # ERROR
+		print(res.json())
 		
 
 result = rss_parser.extraction()
@@ -54,7 +45,7 @@ for article in result:
 	text = f"{article['title']}\n{article['description']}"
 
 	list_of_ner_word, test = ner.predict(text)
-	list_of_word_for_article = {}
+	list_of_word_for_article = set()
 
 	for it in list_of_ner_word[::]:
 		#print(item)
@@ -62,17 +53,9 @@ for article in result:
 			list_of_ner_word.remove(it)
 			continue
 
-		if it['word'][0] 	== ' ': it['word'] = it['word'][1:]
-		if it['word'][-1] 	== ' ': it['word'] = it['word'][0:-1]
+		list_of_word_for_article.add(it['word'].strip())
 
-		if it['word'] in list_of_word_for_article.keys():
-			list_of_word_for_article[it['word']] += 1
-		else:
-			list_of_word_for_article[it['word']] = 1
-
-	article['hashtags'] = list(list_of_word_for_article.items())
-
-	print(article)
+	article['hashtags'] = list(list_of_word_for_article)
 
 	#for k in list_of_word_for_article.keys():
 	#	if list_of_word_for_article[k] in list_of_word_for_all.keys():
@@ -80,4 +63,4 @@ for article in result:
 	#	else:
 	#		list_of_word_for_all[k] = list_of_word_for_article[k]
 
-	#save(article)
+	save(article)

@@ -64,10 +64,7 @@ class RssParser:
 		'''
 		html_parser = HTMLParser()
 		text = html_parser.unescape(text)
-		return text \
-			.replace('\\', '\\\\') \
-			.replace("\"", "\\\"") \
-			.replace("\'", "\\'") \
+		return text
 
 	def fine_elems_on_article(self, item, date_form=['pubdate']):
 		result = {}
