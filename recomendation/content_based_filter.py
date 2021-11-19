@@ -7,14 +7,14 @@ import pandas as pd
 
 class ContentBasedFilter:
 
-	def __init__(self, contents=None, contents_target_col=None) -> None:
+	def __init__(self, contents_df=None, contents_target_col=None) -> None:
 		self.count_vectorizer = CountVectorizer()
-		if contents and contents_target_col:
-			self.set_contents(contents, contents_target_col)
+		if contents_df and contents_target_col:
+			self.set_contents(contents_df, contents_target_col)
 
-	def set_contents(self, contents, target_col):
+	def set_contents(self, contents_df, target_col):
 		# @TODO: Modify
-		self.contents_df = contents
+		self.contents_df = contents_df
 		self.target_col = target_col
 
 		self.contents_df[f'{target_col}_literal'] = \
@@ -42,20 +42,20 @@ class ContentBasedFilter:
 
 		return result
 
-
 '''
 Client Data
 '''
-client_genres = ['Comedy', 'Romance', 'Action']
+client_genres = ['메타버스', '서울', '미국']
 
 '''
 Target Data
 '''
-movies_df = pd.read_csv('data/movies.csv')
-movies_df['genres'] = movies_df['genres'].apply(
+movies_df = pd.read_csv('data/news.csv')
+
+movies_df['hashtags'] = (movies_df['hashtags'].fillna("")).apply(
 	lambda x: x.split('|')
 )
 
 content_based_filter = ContentBasedFilter()
-content_based_filter.set_contents(movies_df, 'genres')
+content_based_filter.set_contents(movies_df, 'hashtags')
 content_based_filter.predict(client_genres, print_result=True)
