@@ -1,9 +1,12 @@
 from numpy import number
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
+import requests
+import json
 import pandas as pd
 
+SERVER_URL = 'http://localhost:8080'
+N_HASHTAG = 3
 
 class ContentBasedFilter:
 
@@ -45,17 +48,20 @@ class ContentBasedFilter:
 '''
 Client Data
 '''
-client_genres = ['메타버스', '서울', '미국']
+client_id = 1982137778
+client_genres = requests.get(f'{SERVER_URL}/hashtag/client/{client_id}?size={N_HASHTAG}&sort=score&direction=desc').json()
+client_genres = json.loads(json.dumps(client_genres))
+client_genres = [x['hashtag']['tag'] for x in client_genres]
 
 '''
 Target Data
 '''
-movies_df = pd.read_csv('data/news.csv')
+news_df = pd.read_csv('data/news.csv')
 
-movies_df['hashtags'] = (movies_df['hashtags'].fillna("")).apply(
+news_df['hashtags'] = (news_df['hashtags'].fillna("")).apply(
 	lambda x: x.split('|')
 )
 
 content_based_filter = ContentBasedFilter()
-content_based_filter.set_contents(movies_df, 'hashtags')
+content_based_filter.set_contents(news_df, 'hashtags')
 content_based_filter.predict(client_genres, print_result=True)

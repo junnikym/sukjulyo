@@ -8,6 +8,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 import requests
+import json
 import datetime
 
 SERVER_URL = 'http://localhost:8080'
@@ -17,104 +18,97 @@ class Topic:
 
 	def __init__(
 		self, 
-		n_issue_tags=25, 
-		n_all_tags=1000, 
-		n_gap=5, 
-		allow_gradient=10,
-		min_freq=200
+		percentile=0.25,
+		n_issue_tags=3,
+		n_offset = 0
 	) -> None:
+		self.percentile = percentile
 		self.n_issue_tags = n_issue_tags
-		self.n_all_tags = n_all_tags
-		self.n_gap = n_gap
-		self.allow_gradient = allow_gradient
-		self.min_freq = min_freq
+		self.n_offset = n_offset
 
-	def get_most_freq_tags(self, period: str):
 
-		period = period.lower()
-		period_to_hour = 0
-		if period == 'day':
-			period_to_hour = 24
+	def _parse_to_hour(self, x: str):
+		x = x.lower()
+		if x == 'day':
+			return 24
+		elif x == 'week':
+			return 24*7
 		else:
 			print(" error at recommendation / topic - wrong input (period) ")
 
-		start_t = datetime.datetime.now().strftime("%Y-%m-%dT00:00:00")
-		end_t = (
-			datetime.datetime.strptime(start_t, TIME_FORM) 
-			+ datetime.timedelta(hours=period_to_hour)
+		return None
+
+
+	def get_freq(self, period: str, duration: str, parse_to_hour=True):
+
+		period = period.upper()
+		if parse_to_hour:
+			duration = self._parse_to_hour(duration)
+
+		today_t = datetime.datetime.now().strftime("%Y-%m-%dT00:00:00")
+		start_t = (
+			datetime.datetime.strptime(today_t, TIME_FORM)
+			- datetime.timedelta(hours=duration)
 		).strftime(TIME_FORM)
+		end_t = (
+			datetime.datetime.strptime(today_t, TIME_FORM)
+			+ datetime.timedelta(hours=23, minutes=59, seconds=59)
+		).strftime(TIME_FORM)
+
 		today = datetime.datetime.now().strftime("%d")
 
 		headers = {'Content-Type': 'application/json; charset=utf-8'} 
 		cookies = {'access': 'sorryidontcare'}
 
 		top_tag_res = requests.get(
-			f"{SERVER_URL}/hashtag/freq?period=DAY&limit={self.n_all_tags}&offset={self.n_all_tags-1}&start={start_t}&end={end_t}",
-			#f"http://localhost:8080/hashtag/freq?period=DAY&limit={self.n_issue_tags}&offset=8&start=2021-11-06T00:00:00&end=2021-11-16T23:59:59",
+			f"{SERVER_URL}/hashtag/freq?period={period}&limit={self.n_issue_tags}&offset={self.n_offset}&start={start_t}&end={end_t}",
 			headers=headers
 		)
 
-		top_tag = top_tag_res.json()
-		tag_avr = {}
-		total_avr = 0
-		print(top_tag)
-		[tag_avr.update({it['date']: 0}) for it in top_tag]
+		if top_tag_res.status_code == 200:
+			data = json.loads(json.dumps(top_tag_res.json()))
 
-		for tag in top_tag:
-			tag_avr[tag['date']] += int( tag['freq'] )
-		for k in tag_avr.keys():
-			tag_avr[k] /= self.n_issue_tags
-			total_avr += tag_avr[k]
-		total_avr /= len(tag_avr)
+			all_avr = 0
+			all_num = 0
+			avr_freq = []
+			dates = set([int(x['date']) for x in data])
+			for d in dates:
+				num = 0
+				avr_freq.append({'date': d, 'freq': 0})
+				tags = list(filter(lambda x: int(x['date']) == d, data))
 
-		print(tag_avr)
-		print(tag_avr['6'])
-		print(total_avr)
+				for t in tags:
+					avr_freq[-1]['freq'] += t['freq']
+					num += 1
 
-		if tag_avr[str(today)] == total_avr:
-		#if tag_avr['6'] >= total_avr:
-			today_tag_res = requests.get(
-				f"{SERVER_URL}/hashtag/freq?limit={self.n_all_tags}&offset=0&start={start_t}&end={end_t}",
-				#"http://localhost:8080/hashtag?limit=10&offset=8&start=2021-11-06T00:00:00&end=2021-11-16T23:59:59",
-				headers=headers
-			)
+					all_avr += t['freq']
+					all_num += 1
 
-			return today_tag_res.json()
+				avr_freq[-1]['freq'] /= num
+
+			return data, sorted(avr_freq, key=lambda x: x['freq'], reverse=True), today, (all_avr/all_num)
 
 		return None;
+
 	
-	def get_issues(self, period):
+	def get_issues(self, period, duration, parse_to_hour=False):
 
-		tags = self.get_most_freq_tags(period);
-		if tags == None:
+		tags, avr_freq, today, all_avr = self.get_freq(period, duration, parse_to_hour=parse_to_hour)
+		if not tags or not avr_freq or not today or not all_avr:
 			return
-		
-		result = []
-		for i in range(0, self.n_issue_tags):
-			a = -(tags[i+self.n_gap]['freq'] - tags[i]['freq']) / self.n_gap
-			if a > self.allow_gradient and tags[i]['freq'] > self.min_freq:
-				result.append(tags[i])
 
-		print(result)
+		today_i = None
+		for i in range(len(avr_freq)):
+			if int(avr_freq[i]['date']) == int(today):
+				today_i = i+1
+				break;
 
-		#pd.json_normalize(tags).plot.kde()
-		#plt.show()
+		if (today_i/len(avr_freq)) <= self.percentile:
+			return list(filter(lambda x: int(x['date']) == int(today) and int(x['freq']) >= all_avr, tags))
 
-		# if hashtag_frequency is over than limit => return hashtag
-		return result
+		else:
+			return None;
 
 
 topic = Topic()
-topic.get_issues('DAY');
-
-
-#plt.plot(test_df['tag'], test_df['freq'])
-#plt.show()
-
-#kde = KernelDensity(bandwidth=1.0, kernel='gaussian')
-#kde.fit(test_df[:, None])
-
-#print(kde)
-
-#sns.distplot(test_df['tag'], bins=10, kde=True, rug=True)
-#plt.show()
+topic.get_issues('DAY', 24, parse_to_hour=False)
