@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 RATING_MIN = 0.5
-RATING_MAX = 5.0
+RATING_MAX = 15.0
 
 class LatentFactorCollaborativeFilter:
 
@@ -83,6 +83,8 @@ class LatentFactorCollaborativeFilter:
 		total = self.contents_df[self.iid].tolist()
 		unread = [it for it in total if it not in read]
 
+		print(read)
+
 		return unread
 
 	def predict(self, target_user_id, unread=None, top_n=100):
@@ -98,7 +100,7 @@ class LatentFactorCollaborativeFilter:
 		top_predictions.rename(columns={'iid': self.iid}, inplace=True)
 
 		top_contens = self.contents_df[
-			movies_df[self.iid].isin(
+			self.contents_df[self.iid].isin(
 				top_predictions[self.iid]
 			)
 		]
@@ -106,10 +108,12 @@ class LatentFactorCollaborativeFilter:
 		return pd.merge(top_predictions, top_contens, on=self.iid)
 
 
-
-movies_df = pd.read_csv('data/movies.csv')
-ratings_df = pd.read_csv('data/ratings.csv')
-contents_df = pd.merge(movies_df, ratings_df, on='movieId')
+hashtags_df = pd.read_csv('data/hashtags.csv', index_col=0)\
+    			.rename(columns={"id": "hashtagId"})[['hashtagId', 'tag']]
+scores_df = pd.read_csv(
+	'data/scores.csv', index_col=0).drop(['id'], axis=1)
+print(scores_df)
+contents_df = pd.merge(hashtags_df, scores_df, on='hashtagId', how='outer')
 
 '''
 ratings_df :
@@ -117,8 +121,11 @@ ratings_df :
 '''
 
 latent_cf = LatentFactorCollaborativeFilter(
-	ratings_df[['userId', 'movieId', 'rating']],
-	movies_df,
-	uid='userId',
-	iid='movieId'
+	scores_df,
+	hashtags_df,
+	uid='clientId',
+	iid='hashtagId'
 )
+print(latent_cf)
+
+print(latent_cf.predict(123))
