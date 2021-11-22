@@ -8,11 +8,14 @@ SAVE_PATH = './data'
 
 N_HASH_LOAD = 1000
 
+
+
 def load_scores(id, n_hashtag, n_client):
 	res = requests.get(
 		f'{SERVER_URL}/hashtag/client?id={id}&n_hashtag={n_hashtag}&n_client={n_client}')
 	if res.status_code == 200:
 		return json.loads(json.dumps(res.json()))
+
 
 
 def load_hashtags():
@@ -34,6 +37,7 @@ def load_hashtags():
 		page += 1
 
 	return result
+
 
 
 def load_news(size):
@@ -58,17 +62,20 @@ def preprocess_news(data):
 		
 	return df
 
-
+print("load news... ")
 news = load_news(5000)
 news_df = preprocess_news(news)
 news_df.to_csv(f'{SAVE_PATH}/news.csv', mode='w')
+print(" save. ")
 
-
+print("load hashtags... ")
 hashtags = load_hashtags()
 hashtags_df = pd.DataFrame(hashtags)
 hashtags_df.to_csv(f'{SAVE_PATH}/hashtags.csv', mode='w')
+print(" save. ")
 
-
+print("load scores... ")
 scores = load_scores(1982137778, 3, 3)
 scores_df = pd.DataFrame(scores)
 scores_df.to_csv(f'{SAVE_PATH}/scores.csv', mode='w')
+print(" save. ")

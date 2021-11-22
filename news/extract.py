@@ -24,7 +24,7 @@ SERVER_URL = 'http://localhost:8080/news'
 '''
 SKIP_TAGS = ['DAT', 'TIM', 'DUR', 'MNY', 'PNT', 'NOH']
 
-#RESTART_NUM = 8902
+#RESTART_NUM = 2000
 RESTART_NUM = None
 
 rss_parser = RssParser()
@@ -60,32 +60,40 @@ for i in range(start_i, len(rss_result)):
 		pbar.update(1)
 		continue
 
-	text = f"{article['title']}\n{article['description']}"
-	splited_text = text.split()
+	_title = article['title'] if 'title' in article.keys() else ''
+	_description = article['description'] if 'description' in article.keys() else ''
+	text = f'{_title}\n{_description}'
+	splited_text = list(reversed(text.split()))
+	if not splited_text:
+		pbar.update(1)
+		continue
 
 	str_i = 0
-	str_buf = splited_text[str_i]
+	str_buf = ''
 	list_of_word_for_article = set()
+	p = ''
 
-	while True:	
-		p=''
-		if str_i < len(splited_text):
-			p = splited_text[str_i]
-			str_i+=1
-		elif str_buf != '':
-			break;
-
+	while True:
+		if not splited_text:
+			break
+		
 		if sys.getsizeof(str_buf) < 512:
+			p = splited_text.pop()
+
 			if sys.getsizeof(p) > 512:
+				p = ''
 				continue
 
 			s = str_buf + ' ' + p
 			if sys.getsizeof(s) < 512:
 				str_buf = s
 				continue
+			
+			else:
+				splited_text.append(p)
 
-		list_of_ner_word, test = ner.predict(p)
-		str_buf = p
+		list_of_ner_word, test = ner.predict(str_buf)
+		str_buf = ''
 
 		for it in list_of_ner_word[::]:
 			if it['tag'] in SKIP_TAGS:
