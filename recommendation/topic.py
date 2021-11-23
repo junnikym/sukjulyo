@@ -103,6 +103,9 @@ class Topic:
 				today_i = i+1
 				break;
 
+		if today_i == None:
+			return None
+
 		if (today_i/len(avr_freq)) <= self.percentile:
 			return list(filter(lambda x: int(x['date']) == int(today) and int(x['freq']) >= all_avr, tags))
 
@@ -110,5 +113,5 @@ class Topic:
 			return None;
 
 
-topic = Topic()
-topic.get_issues('DAY', 24, parse_to_hour=False)
+#topic = Topic()
+#topic.get_issues('DAY', 24, parse_to_hour=False)

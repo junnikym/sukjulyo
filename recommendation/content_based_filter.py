@@ -6,7 +6,6 @@ import json
 import pandas as pd
 
 SERVER_URL = 'http://localhost:8080'
-N_HASHTAG = 3
 
 class ContentBasedFilter:
 
@@ -45,23 +44,25 @@ class ContentBasedFilter:
 
 		return result
 
-'''
-Client Data
-'''
-client_id = 1982137778
-client_genres = requests.get(f'{SERVER_URL}/hashtag/client/{client_id}?size={N_HASHTAG}&sort=score&direction=desc').json()
-client_genres = json.loads(json.dumps(client_genres))
-client_genres = [x['hashtag']['tag'] for x in client_genres]
+N_HASHTAG = 3
 
-'''
-Target Data
-'''
-news_df = pd.read_csv('data/news.csv')
+#'''
+#Client Data
+#'''
+#client_id = 1982137778
+#client_genres = requests.get(f'{SERVER_URL}/hashtag/client/{client_id}?size={N_HASHTAG}&sort=score&direction=desc').json()
+#client_genres = json.loads(json.dumps(client_genres))
+#client_genres = [x['hashtag']['tag'] for x in client_genres]
 
-news_df['hashtags'] = (news_df['hashtags'].fillna("")).apply(
-	lambda x: x.split('|')
-)
+#'''
+#Target Data
+#'''
+#news_df = pd.read_csv('data/news.csv')
 
-content_based_filter = ContentBasedFilter()
-content_based_filter.set_contents(news_df, 'hashtags')
-content_based_filter.predict(client_genres, print_result=True)
+#news_df['hashtags'] = (news_df['hashtags'].fillna("")).apply(
+#	lambda x: x.split('|')
+#)
+
+#content_based_filter = ContentBasedFilter()
+#content_based_filter.set_contents(news_df, 'hashtags')
+#content_based_filter.predict(client_genres, print_result=True)

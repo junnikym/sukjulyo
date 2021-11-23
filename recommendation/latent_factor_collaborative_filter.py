@@ -108,24 +108,24 @@ class LatentFactorCollaborativeFilter:
 		return pd.merge(top_predictions, top_contens, on=self.iid)
 
 
-hashtags_df = pd.read_csv('data/hashtags.csv', index_col=0)\
-    			.rename(columns={"id": "hashtagId"})[['hashtagId', 'tag']]
-scores_df = pd.read_csv(
-	'data/scores.csv', index_col=0).drop(['id'], axis=1)
-print(scores_df)
-contents_df = pd.merge(hashtags_df, scores_df, on='hashtagId', how='outer')
+#hashtags_df = pd.read_csv('data/hashtags.csv', index_col=0)\
+#    			.rename(columns={"id": "hashtagId"})[['hashtagId', 'tag']]
+#scores_df = pd.read_csv(
+#	'data/scores.csv', index_col=0).drop(['id'], axis=1)
+#print(scores_df)
+#contents_df = pd.merge(hashtags_df, scores_df, on='hashtagId', how='outer')
 
 '''
 ratings_df :
 	contents_df 데이터의 User, Item, Rating 3가지 컬럼을 순서대로 배치
 '''
 
-latent_cf = LatentFactorCollaborativeFilter(
-	scores_df,
-	hashtags_df,
-	uid='clientId',
-	iid='hashtagId'
-)
-print(latent_cf)
+#latent_cf = LatentFactorCollaborativeFilter(
+#	scores_df,
+#	hashtags_df,
+#	uid='clientId',
+#	iid='hashtagId'
+#)
+#print(latent_cf)
 
-print(latent_cf.predict(123))
+#print(latent_cf.predict(123))
