@@ -25,40 +25,60 @@ class ExtSummarization():
 		self.visible_gpus=visible_gpus
 		self.pt=pt
 
-	def preprocessing(self):
+	def load_and_preprocessing(self):
 		os.makedirs(self.DATA_DIR, exist_ok=True)
 		os.makedirs(self.RAW_DATA_DIR, exist_ok=True)
 
 		# import data
+		print("[summary - ext] raw data load")
 		with open(f'{self.RAW_DATA_DIR}/data.jsonl', 'r') as json_file:
 			json_list = list(json_file)
 
+		result = []
 		target_data = []
+		target_idxs = []
+		idx = 0
 		for json_str in json_list:
 			line = json.loads(json_str)
-			target_data.append(line)
+
+			if isinstance(line['article_original'], list):
+				if len(line['article_original']) > 3:
+					target_data.append(line)
+					target_idxs.append(idx)
+				else:
+					line['extractive_sents'] = ' '.join(line['article_original'])
+			else:
+				line['article_original'] = [line['article_original']]
+				line['extractive_sents'] = line['article_original']
+
+			result.append(line)
+			idx += 1
+
+		if not target_data:
+			return None, result
 
 		# Convert raw data to df
-		df = pd.DataFrame(target_data)
-		df['extractive_sents'] = df.apply(lambda row: list(np.array(row['article_original'])) , axis=1)
-
 		target_data_df = pd.DataFrame(target_data)
-		
-		os.makedirs(self.JSON_DATA_DIR, exist_ok=True)
-		os.makedirs(self.BERT_DATA_DIR, exist_ok=True)
 
+		# Convert raw data to json files
+		print("[summary - ext] raw data to json file")
+
+		os.makedirs(self.JSON_DATA_DIR, exist_ok=True)
 		json_data_dir = f"{self.JSON_DATA_DIR}/test"
 		if os.path.exists(json_data_dir):
-			os.system(f"rm {json_data_dir}/*")
+			os.system(f"rm -rf {json_data_dir}/*")
 		else:
 			os.mkdir(json_data_dir)
 
 		create_json_files(target_data_df, data_type='test', path=self.JSON_DATA_DIR)
 		
 		## Convert json to bert.pt files
+		print("[summary - ext] json data to bert.pt file")
+
+		os.makedirs(self.BERT_DATA_DIR, exist_ok=True)
 		bert_data_dir = f"{self.BERT_DATA_DIR}/test"
 		if os.path.exists(bert_data_dir):
-			os.system(f"rm {bert_data_dir}/*")
+			os.system(f"rm -rf {bert_data_dir}/*")
 		else:
 			os.mkdir(bert_data_dir)
 			
@@ -70,15 +90,17 @@ class ExtSummarization():
 			+ f" -log_file {self.LOG_PREPO_FILE}"
 			+ f" -lower -n_cpus {self.n_cpus}")
 
-	def predict(self, preprocessing):
+		return target_idxs, result
 
-		if preprocessing:
-			self.preprocessing()
+	def predict(self, model_folder, model_name):
+		target_idxs, result = self.load_and_preprocessing()
+		if not target_idxs:
+			return result;
 
+		print("[summary - ext] predict summary")
 		model_folder, model_name = self.pt.rsplit('/', 1)
 		model_name = model_name.split('_', 1)[1].split('.')[0]
-
-		os.chdir(f'{self.PROJECT_DIR}/ext/src')
+		
 		os.system(f"""\
 				python3 train.py -task ext -mode test \
 				-test_from {self.MODEL_DIR}/{self.pt} \
@@ -91,3 +113,29 @@ class ExtSummarization():
 				-report_rouge False \
 				-max_tgt_len 100
 			""")
+
+		ext_result_file = f'{self.RESULT_DIR}/result_{model_folder}_{model_name}.candidate'
+		with open(ext_result_file, 'r') as f:
+			idx = 0
+			while True:
+				line = f.readline()
+				if not line: break
+
+				list_idx = line.rfind('[')
+				text = line[:list_idx]
+				text = text.replace('<q>', ' ')
+
+				print(result[target_idxs[idx]])
+				
+				result[target_idxs[idx]].update({'extractive_sents': text})
+				idx += 1
+
+		return result
+				
+
+#ext_summary = ExtSummarization(
+#    visible_gpus=-1,  # using cpu
+#    n_cpus=2,
+#    pt='1209_1236/model_step_18000.pt'
+#)
+#ext_summary.predict()
