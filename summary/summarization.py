@@ -1,6 +1,6 @@
 import os
 import argparse
-import json
+import requests
 
 from ext_summarization import ExtSummarization
 from abs_summarization import AbsSummarization
@@ -9,6 +9,8 @@ PROJECT_DIR = os.getcwd()
 DATA_DIR = f'{PROJECT_DIR}/ext/ext/data'
 RESULT_DIR = f'{PROJECT_DIR}/ext/ext/results'
 RAW_DATA_DIR = f'{DATA_DIR}/raw'
+
+SERVER_URL = "http://localhost:8080"
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
@@ -30,6 +32,7 @@ if __name__ == '__main__':
 	model_name = model_name.split('_', 1)[1].split('.')[0]
 	ext_result = ext_summary.predict(model_folder, model_name)
 
-	print("total idx : ", len(ext_result))
-	for idx, sent in enumerate(ext_result):
-		print(idx, " : ", abs_summary.predict(sent['extractive_sents']))
+	for sent in ext_result:
+		abs_sum = abs_summary.predict(sent['extractive_sents'])
+		body_json = {"link": sent['link'], "summary": abs_sum}
+		requests.put(f'{SERVER_URL}/news', json=body_json)
