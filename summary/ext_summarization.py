@@ -5,7 +5,12 @@ import torch
 import pandas as pd
 import numpy as np
 
-from ext.src.make_data import create_json_files
+import json
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
+from ext.src.make_data import preprocessing, korean_sent_spliter
 
 class ExtSummarization():
 
@@ -25,6 +30,48 @@ class ExtSummarization():
 		self.visible_gpus=visible_gpus
 		self.pt=pt
 
+	def create_json_files(df, target_idxs, path=''):
+		'''
+		uoneway/KoBertSum -> (KoBertSum Project)/src/make_data.py 
+		'''
+		NUM_DOCS_IN_ONE_FILE = 1000
+		start_idx_list = list(range(0, len(df), NUM_DOCS_IN_ONE_FILE))
+
+		except_idx_list = []
+		for start_idx in tqdm(start_idx_list):
+			end_idx = start_idx + NUM_DOCS_IN_ONE_FILE
+			if end_idx > len(df):
+				end_idx = len(df)  # -1로 하니 안됨...
+
+			#정렬을 위해 앞에 0 채워주기
+			length = len(str(len(df)))
+			start_idx_str = (length - len(str(start_idx)))*'0' + str(start_idx)
+			end_idx_str = (length - len(str(end_idx-1)))*'0' + str(end_idx-1)
+
+			file_name = os.path.join(f'{path}/test' \
+									+ f'/test.{start_idx_str}_{end_idx_str}.json')
+			
+			json_list = []
+			for i, row in df.iloc[start_idx:end_idx].iterrows():
+				original_sents_list = [preprocessing(original_sent).split()  # , korean_tokenizer
+										for original_sent in row['article_original']]
+				summary_sents_list = []
+
+				original_sents_list = list(filter(lambda x: len(x) > 1, original_sents_list))
+				if len(original_sents_list) < 3:
+					except_idx_list.append(target_idxs[i])
+					
+				else:
+					json_list.append({'src': original_sents_list,
+									'tgt': summary_sents_list
+					})
+
+			json_string = json.dumps(json_list, indent=4, ensure_ascii=False)
+			with open(file_name, 'w') as json_file:
+				json_file.write(json_string)
+
+		return except_idx_list
+
 	def load_and_preprocessing(self):
 		os.makedirs(self.DATA_DIR, exist_ok=True)
 		os.makedirs(self.RAW_DATA_DIR, exist_ok=True)
@@ -40,7 +87,7 @@ class ExtSummarization():
 		idx = 0
 		for json_str in json_list:
 			line = json.loads(json_str)
-
+			
 			if isinstance(line['article_original'], list):
 				if len(line['article_original']) > 3:
 					target_data.append(line)
@@ -70,9 +117,17 @@ class ExtSummarization():
 		else:
 			os.mkdir(json_data_dir)
 
-		create_json_files(target_data_df, data_type='test', path=self.JSON_DATA_DIR)
+		except_idx_list = ExtSummarization.create_json_files(
+			target_data_df, 
+			target_idxs, 
+			path=self.JSON_DATA_DIR
+		)
+
+		for idx in except_idx_list:
+			result[idx]['extractive_sents'] = ' '.join(result[idx]['article_original'])
+			target_idxs.remove(idx)
 		
-		## Convert json to bert.pt files
+		# Convert json to bert.pt files
 		print("[summary - ext] json data to bert.pt file")
 
 		os.makedirs(self.BERT_DATA_DIR, exist_ok=True)
@@ -101,6 +156,7 @@ class ExtSummarization():
 		model_folder, model_name = self.pt.rsplit('/', 1)
 		model_name = model_name.split('_', 1)[1].split('.')[0]
 		
+		os.chdir(f'{self.PROJECT_DIR}/ext/src')
 		os.system(f"""\
 				python3 train.py -task ext -mode test \
 				-test_from {self.MODEL_DIR}/{self.pt} \
@@ -116,7 +172,7 @@ class ExtSummarization():
 
 		ext_result_file = f'{self.RESULT_DIR}/result_{model_folder}_{model_name}.candidate'
 		with open(ext_result_file, 'r') as f:
-			idx = 0
+			idx: int = 0
 			while True:
 				line = f.readline()
 				if not line: break
@@ -124,18 +180,8 @@ class ExtSummarization():
 				list_idx = line.rfind('[')
 				text = line[:list_idx]
 				text = text.replace('<q>', ' ')
-
-				print(result[target_idxs[idx]])
 				
 				result[target_idxs[idx]].update({'extractive_sents': text})
 				idx += 1
 
 		return result
-				
-
-#ext_summary = ExtSummarization(
-#    visible_gpus=-1,  # using cpu
-#    n_cpus=2,
-#    pt='1209_1236/model_step_18000.pt'
-#)
-#ext_summary.predict()
