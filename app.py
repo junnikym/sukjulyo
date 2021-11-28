@@ -10,7 +10,8 @@ recommendation = Recommendation('./recommendation/data')
 
 @app.route('/r/<int:client_id>')
 def client_recommendation(client_id):
-	return {"hashtags": recommendation.predict(client_id)}
+	news_result, hashtag_result = recommendation.predict(client_id)
+	return {"newsIds": news_result, "hashtags": news_result}
 
 if __name__ == '__main__':
 	app.run(debug=True)

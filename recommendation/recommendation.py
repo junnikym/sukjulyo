@@ -10,11 +10,13 @@ from content_based_filter import ContentBasedFilter
 
 SERVER_URL = 'http://localhost:8080'
 N_HASHTAG = 5
-
+N_PART_RESULT = 4
 
 class Recommendation():
 	
-	def __init__(self) -> None:
+	def __init__(self, data_dir) -> None:
+		self.DATA_DIR = data_dir
+
 		self.update()
 
 		self.topic = Topic()
@@ -30,14 +32,14 @@ class Recommendation():
 		self.content_based_filter.set_contents(self.news_df, 'hashtags')
 
 	def update(self) -> None:
-		self.news_df = pd.read_csv('data/news.csv')
+		self.news_df = pd.read_csv(f'{self.DATA_DIR}/news.csv')
 		self.news_df['hashtags'] = (self.news_df['hashtags'].fillna("")).apply(
 			lambda x: x.split('|')
 		)
 
-		self.hashtags_df = pd.read_csv('data/hashtags.csv', index_col=0)\
+		self.hashtags_df = pd.read_csv(f'{self.DATA_DIR}/hashtags.csv', index_col=0)\
             .rename(columns={"id": "hashtagId"})[['hashtagId', 'tag']]
-		self.scores_df = pd.read_csv('data/scores.csv', index_col=0).drop(['id'], axis=1)
+		self.scores_df = pd.read_csv(f'{self.DATA_DIR}/scores.csv', index_col=0).drop(['id'], axis=1)
 
 		'''
 		ratings_df :
@@ -49,16 +51,26 @@ class Recommendation():
 			self.content_based_filter.set_contents(self.news_df, 'hashtags')
 
 	def predict(self, client_id):
-		result = []
+		news_result = []
+		hashtag_result = []
+		not_first_news = []
+
+		n_rest_of_not_first = 0
 
 		''' --------------------------------------------------
 		Get Issue Topic
 		-------------------------------------------------- '''
-		issue_tags = self.topic.get_issues('DAY', 24, parse_to_hour=False)
+		issue_tags = self.topic.get_issues('DAY', 'WEEK', parse_to_hour=True)
 		if issue_tags:
-			news = self.content_based_filter.predict(issue_tags, result_size=1, print_result=False)
+			hashtag_result.extend(issue_tags)
+			news = self.content_based_filter.predict(issue_tags, result_size=N_PART_RESULT, print_result=False)
 			if news:
-				result.append(news[0][1])
+				news_result.append(news[0][1])
+				if len(news) > 1: not_first_news.extend([x[1] for x in news[1:]])
+
+			n_rest_of_not_first += N_PART_RESULT - len(news)
+		else:
+			n_rest_of_not_first += N_PART_RESULT
 
 		''' --------------------------------------------------
 		Get from latent-CF
@@ -67,25 +79,31 @@ class Recommendation():
 		lcf = lcf[(lcf.est >= 15.0)]
 		if lcf.count().tag:
 			lcf = lcf['tag'].values
-			news = self.content_based_filter.predict(
-				lcf, result_size=1, print_result=False)
+			hashtag_result.extend(lcf)
+			news = self.content_based_filter.predict(lcf, result_size=N_PART_RESULT, print_result=False)
 			if news:
-				result.append(news[0][1])
+				news_result.append(news[0][1])
+				if len(news) > 1: not_first_news.extend([x[1] for x in news[1:]])
+
+			n_rest_of_not_first += N_PART_RESULT - len(news)
 
 		''' --------------------------------------------------
 		Get from conten-based-filter
 		-------------------------------------------------- '''
 		# < Client Data >
-		client_genres = requests.get(
-			f'{SERVER_URL}/hashtag/client/{client_id}?size={N_HASHTAG}&sort=score&direction=desc').json()
+		client_genres = requests.get(f'{SERVER_URL}/hashtag/client/{client_id}?size={N_HASHTAG}&sort=score&direction=desc').json()
 		client_genres = json.loads(json.dumps(client_genres))
 		client_genres = [x['hashtag']['tag'] for x in client_genres]
+		
+		hashtag_result.extend(client_genres)
 
 		# < Target Data >
-		cbf = self.content_based_filter.predict(client_genres, print_result=False)
-		if cbf:
-			n_rest = 3-len(result)
-			for i in range(n_rest):
-				result.append(cbf[i][1])
+		n_rest = 3-len(news_result) + n_rest_of_not_first
 
-		return result
+		cbf = self.content_based_filter.predict(client_genres, print_result=False, result_size=n_rest)
+		if cbf:
+			news_result.extend([x[1] for x in cbf[:n_rest]])
+			news_result.extend(not_first_news)
+			news_result.extend([x[1] for x in cbf[n_rest:]])
+
+		return news_result, hashtag_result
