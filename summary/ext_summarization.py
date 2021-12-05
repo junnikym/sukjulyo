@@ -147,28 +147,29 @@ class ExtSummarization():
 
 		return target_idxs, result
 
-	def predict(self, model_folder, model_name):
+	def predict(self, model_folder, model_name, only_read_file=False):
 		target_idxs, result = self.load_and_preprocessing()
 		if not target_idxs:
 			return result;
 
-		print("[summary - ext] predict summary")
-		model_folder, model_name = self.pt.rsplit('/', 1)
-		model_name = model_name.split('_', 1)[1].split('.')[0]
-		
-		os.chdir(f'{self.PROJECT_DIR}/ext/src')
-		os.system(f"""\
-				python3 train.py -task ext -mode test \
-				-test_from {self.MODEL_DIR}/{self.pt} \
-				-bert_data_path {self.BERT_DATA_DIR}/test \
-				-result_path {self.RESULT_DIR}/result_{model_folder} \
-				-log_file {self.LOG_DIR}/test_{model_folder}.log \
-				-test_batch_size 1  -batch_size 000 \
-				-sep_optim true -use_interval true -visible_gpus {self.visible_gpus} \
-				-max_pos 512 -max_length 200 -alpha 0.95 -min_length 50 \
-				-report_rouge False \
-				-max_tgt_len 100
-			""")
+		if not only_read_file:
+			print("[summary - ext] predict summary")
+			model_folder, model_name = self.pt.rsplit('/', 1)
+			model_name = model_name.split('_', 1)[1].split('.')[0]
+			
+			os.chdir(f'{self.PROJECT_DIR}/ext/src')
+			os.system(f"""\
+					python3 train.py -task ext -mode test \
+					-test_from {self.MODEL_DIR}/{self.pt} \
+					-bert_data_path {self.BERT_DATA_DIR}/test \
+					-result_path {self.RESULT_DIR}/result_{model_folder} \
+					-log_file {self.LOG_DIR}/test_{model_folder}.log \
+					-test_batch_size 1  -batch_size 000 \
+					-sep_optim true -use_interval true -visible_gpus {self.visible_gpus} \
+					-max_pos 512 -max_length 200 -alpha 0.95 -min_length 50 \
+					-report_rouge False \
+					-max_tgt_len 100
+				""")
 
 		ext_result_file = f'{self.RESULT_DIR}/result_{model_folder}_{model_name}.candidate'
 		with open(ext_result_file, 'r') as f:

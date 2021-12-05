@@ -13,6 +13,7 @@ RESULT_DIR = f'{PROJECT_DIR}/ext/ext/results'
 RAW_DATA_DIR = f'{DATA_DIR}/raw'
 
 SERVER_URL = "http://localhost:8080"
+SKIP_NUM = 0;
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
@@ -32,10 +33,11 @@ if __name__ == '__main__':
 
 	model_folder, model_name = args.pt.rsplit('/', 1)
 	model_name = model_name.split('_', 1)[1].split('.')[0]
-	ext_result = ext_summary.predict(model_folder, model_name)
+	ext_result = ext_summary.predict(model_folder, model_name, only_read_file=(False if SKIP_NUM==0 else True))
 
 	pbar = tqdm(total=len(ext_result))
-	for sent in ext_result:
+	pbar.update(SKIP_NUM)
+	for sent in ext_result[SKIP_NUM:]:
 		if 'extractive_sents' in sent.keys() and not sent['article_original']:
 			continue
 
